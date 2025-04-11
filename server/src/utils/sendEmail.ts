@@ -60,3 +60,31 @@ export const sendVerificationEmail = async (
   const emailBody = mailGen.generate(email);
   sendEmail({ to: emailId, subject: 'Verify your email', emailBody });
 };
+
+export const sendPasswordResetMail = async (
+  name: string,
+  emailId: string,
+  resettoken: string
+) => {
+  const passwordResetUrl = `${process.env.FRONTEND_URL}/resetPassword?token=${resettoken}`;
+
+  const email = {
+    body: {
+      name,
+      intro: 'You have requested a password reset',
+      action: {
+        instructions: 'Click on the below button to reset your password',
+        button: {
+          color: '#22BC66',
+          text: 'Reset Password',
+          link: passwordResetUrl,
+        },
+      },
+      outro:
+        'If you did not request a password reset, no further action is required.',
+    },
+  };
+
+  const emailBody = mailGen.generate(email);
+  sendEmail({ to: emailId, subject: 'Password Reset', emailBody });
+};
