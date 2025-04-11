@@ -8,26 +8,108 @@ datasource db {
 }
 
 model User {
-  id                          String    @id @default(auto()) @map("_id") @db.ObjectId
+  id                          String          @id @default(auto()) @map("_id") @db.ObjectId
   name                        String
-  email                       String    @unique
+  email                       String          @unique
   password                    String
-  role                        Role      @default(USER)
-  phone                       String?   @unique
+  role                        Role            @default(USER)
+  phone                       String?         @unique
+  userCategory                UserCategory
   passwordChangedAt           DateTime?
   passwordResetToken          String?
   passwordResetTokenExpiresAt DateTime?
-  isVerified                  Boolean   @default(false)
+  isVerified                  Boolean         @default(false)
   verificationToken           String?
-  isKycComplete               Boolean   @default(false)
-  createdAt                   DateTime  @default(now())
-  updatedAt                   DateTime  @updatedAt
+  isKycComplete               Boolean         @default(false)
+  createdAt                   DateTime        @default(now())
+  updatedAt                   DateTime        @updatedAt
+  KYC                         Kyc?
+  ExpensesForms               ExpensesForm[]
+  ExpenseClaims               ExpenseClaims[]
+}
+
+model Event {
+  id                 String          @id @default(auto()) @map("_id") @db.ObjectId
+  name               String
+  location           String
+  submissionDeadline DateTime
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  expensesForms      ExpensesForm[]
+  ExpenseClaims      ExpenseClaims[]
+}
+
+model ExpensesForm {
+  id                  String         @id @default(auto()) @map("_id") @db.ObjectId
+  eventId             String         @db.ObjectId
+  event               Event          @relation(fields: [eventId], references: [id])
+  userId              String         @db.ObjectId
+  user                User           @relation(fields: [userId], references: [id])
+  memberCategory      MemberCategory
+  costCenter          CostCenter
+  sanctionStatus      SanctionStatus @default(PENDING)
+  reasonForRejection  String?
+  actionTaken         String?
+  voucherNumber       String?
+  reimbursementDate   DateTime?
+  bankReferenceNumber String?
+  totalClaimAmount    Float
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+model ExpenseClaims {
+  id               String           @id @default(auto()) @map("_id") @db.ObjectId
+  eventId          String           @db.ObjectId
+  event            Event            @relation(fields: [eventId], references: [id])
+  userId           String           @db.ObjectId
+  user             User             @relation(fields: [userId], references: [id])
+  date             DateTime
+  amount           Float
+  remarks          String?
+  expenseClaimType ExpenseClaimType
+  billUrl          String
+}
+
+model Kyc {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String      @unique @db.ObjectId
+  user            User        @relation(fields: [userId], references: [id])
+  bankAccountName String
+  accountType     AccountType
+  accountNumber   String
+  bankName        String
+  bankAddress     String
+  ifscCode        String
+}
+
+enum ExpenseClaimType {
+  FOOD
+  ACCOMODATION
+  LOCALTRANSPORT
+  REGISTRATIONSCERTIFICATIONS
+  STATIONARYGIVEAWAYS
+  HONARARIUMTA
+  HONARARIUMCOORDINATORS
+  HONARARIUMOTHERS
+  OTHERS
+}
+
+enum AccountType {
+  SAVINGS
+  CURRENT
 }
 
 enum Role {
   ADMIN
   OPERATOR
   USER
+}
+
+enum UserCategory {
+  INDIVIDUAL
+  VENDOR
+  NA
 }
 
 enum MemberCategory {
@@ -38,4 +120,22 @@ enum MemberCategory {
   INVITEE
   DELEGATE
   OTHERS
+}
+
+enum SanctionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CostCenter {
+  EXECOM
+  ACMIW
+  EDUCATION
+  RFC
+  AWARDS
+  MEMBERSCHAPTERS
+  COMMUNICATION
+  CONFERENCES
+  EXTENG
 }

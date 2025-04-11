@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 
 import globalErrorHandler from './controllers/errorController';
 import authRouter from './routers/authRoutes';
+import eventRouter from './routers/eventRoutes';
 import AppError from './utils/AppError';
 
 const app = express();
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/events', eventRouter);
 
 app.all('/{*splat}', (req: Request, res: Response, next: NextFunction) => {
   return next(

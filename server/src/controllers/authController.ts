@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-import { Role, User } from '@prisma/client';
+import { Role, User, UserCategory } from '@prisma/client';
 
 import catchAsync from '../utils/catchAsync';
 import AppError from '../utils/AppError';
@@ -51,7 +51,8 @@ export const signup = catchAsync(
       return next(new AppError(errors.join(', '), 400));
     }
 
-    const { name, email, password, confirmPassword, phone } = zodResult.data;
+    const { name, email, password, confirmPassword, phone, userCategory } =
+      zodResult.data;
 
     if (password !== confirmPassword)
       return next(new AppError('Passwords do not match', 400));
@@ -69,6 +70,7 @@ export const signup = catchAsync(
         email,
         password: hashedPassword,
         role: Role.USER,
+        userCategory,
         phone,
         verificationToken: verificationTokenHash,
         passwordChangedAt: new Date(),
@@ -245,32 +247,6 @@ export const changePassword = catchAsync(
   }
 );
 
-export const oAuth = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const user = await prisma.user.findFirst({
-      where: { email: req.body.email },
-    });
-
-    if (user) {
-      createSendToken(user, 200, res);
-    } else {
-      const generatedPassword = Math.random().toString(36).slice(-8);
-
-      const newUser = await prisma.user.create({
-        data: {
-          name: req.body.name,
-          email: req.body.email,
-          password: await bcrypt.hash(generatedPassword, 12),
-          role: 'USER',
-          isVerified: true,
-        },
-      });
-
-      createSendToken(newUser, 201, res);
-    }
-  }
-);
-
 export const protect = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies?.jwt;
@@ -318,7 +294,8 @@ export const createAdminUser = catchAsync(
         name,
         email,
         password: hashedPassword,
-        role: 'ADMIN',
+        role: Role.ADMIN,
+        userCategory: UserCategory.NA,
         isVerified: true,
         isKycComplete: true,
         phone,
@@ -355,7 +332,8 @@ export const createOperatorUser = catchAsync(
         name,
         email,
         password: hashedPassword,
-        role: 'OPERATOR',
+        role: Role.OPERATOR,
+        userCategory: UserCategory.NA,
         isVerified: true,
         isKycComplete: true,
       },
@@ -372,7 +350,6 @@ export const createOperatorUser = catchAsync(
 
 export const restrictTo = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    console.log(req.user?.role);
     if (!roles.includes(req.user!.role))
       return next(
         new AppError('You do not have permission to perform this action', 403)
