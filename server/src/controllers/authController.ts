@@ -399,6 +399,9 @@ export const protect = catchAsync(
     if (!decodedUser.isVerified)
       return next(new AppError('Please verify your email first', 401));
 
+    if (decodedUser.isKycComplete === false)
+      return next(new AppError('Please complete your KYC first', 401));
+
     req.user = decodedUser as User;
 
     next();
