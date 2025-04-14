@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { JwtPayload } from 'jsonwebtoken';
 import crypto from 'crypto';
 
 import { Role, User, UserCategory } from '@prisma/client';
@@ -15,10 +15,14 @@ import {
 } from '../utils/sendEmail';
 
 const signToken = (user: User) => {
-  const { id, role } = user;
-  return jwt.sign({ id, role }, process.env.JWT_SECRET as string, {
-    expiresIn: (Number(process.env.JWT_EXPIRES_IN) || 90) * 24 * 60 * 60,
-  });
+  const { id, role, userCategory, isVerified, isKycComplete } = user;
+  return jwt.sign(
+    { id, role, userCategory, isVerified, isKycComplete },
+    process.env.JWT_SECRET as string,
+    {
+      expiresIn: (Number(process.env.JWT_EXPIRES_IN) || 90) * 24 * 60 * 60,
+    }
+  );
 };
 
 const createSendToken = (user: User, statusCode: number, res: Response) => {
@@ -247,26 +251,6 @@ export const changePassword = catchAsync(
   }
 );
 
-export const protect = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const token = req.cookies?.jwt;
-
-    if (!token || token === null)
-      return next(
-        new AppError('You are not logged in! Please log in to get access.', 403)
-      );
-
-    const decodedUser = (await jwt.verify(
-      token,
-      process.env.JWT_SECRET!
-    )) as User;
-
-    req.user = decodedUser as User;
-
-    next();
-  }
-);
-
 export const createAdminUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const token = req.headers.authorization?.split(' ')[1];
@@ -345,6 +329,79 @@ export const createOperatorUser = catchAsync(
       status: 'success',
       data,
     });
+  }
+);
+
+export const logout = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    res.clearCookie('jwt').status(200).json({
+      status: 'success',
+    });
+  }
+);
+
+export const isLoggedIn = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.cookies?.jwt)
+      return next(new AppError('You are not logged in', 401));
+
+    const decoded = (await jwt.verify(
+      req.cookies.jwt,
+      process.env.JWT_SECRET!
+    )) as JwtPayload;
+
+    const currentUser = await prisma.user.findUnique({
+      where: {
+        id: decoded.id,
+      },
+    });
+
+    if (!currentUser) {
+      return next(
+        new AppError(
+          'The user belonging to this token does no longer exist',
+          401
+        )
+      );
+    }
+
+    const changedTimestamp = Math.floor(
+      new Date(currentUser.passwordChangedAt!).getTime() / 1000
+    );
+
+    if (decoded.iat && changedTimestamp > decoded.iat) {
+      return next(
+        new AppError('User recently changed password! Please log in again', 401)
+      );
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: currentUser,
+    });
+  }
+);
+
+export const protect = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const token = req.cookies?.jwt;
+
+    if (!token || token === null)
+      return next(
+        new AppError('You are not logged in! Please log in to get access.', 403)
+      );
+
+    const decodedUser = (await jwt.verify(
+      token,
+      process.env.JWT_SECRET!
+    )) as User;
+
+    if (!decodedUser.isVerified)
+      return next(new AppError('Please verify your email first', 401));
+
+    req.user = decodedUser as User;
+
+    next();
   }
 );
 

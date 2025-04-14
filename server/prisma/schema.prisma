@@ -13,7 +13,7 @@ model User {
   email                       String          @unique
   password                    String
   role                        Role            @default(USER)
-  phone                       String?         @unique
+  phone                       String?
   userCategory                UserCategory
   passwordChangedAt           DateTime?
   passwordResetToken          String?
@@ -24,46 +24,52 @@ model User {
   createdAt                   DateTime        @default(now())
   updatedAt                   DateTime        @updatedAt
   KYC                         Kyc?
-  ExpensesForms               ExpensesForm[]
-  ExpenseClaims               ExpenseClaims[]
+  validatedForms              ExpensesForm[]  @relation("form_validator")
+  expensesForms               ExpensesForm[]
+  expenseClaims               ExpenseClaims[]
+
+  @@unique([email, phone])
+  @@index([phone], name: "phone_index")
 }
 
 model Event {
-  id                 String          @id @default(auto()) @map("_id") @db.ObjectId
+  id                 String         @id @default(auto()) @map("_id") @db.ObjectId
   name               String
   location           String
   submissionDeadline DateTime
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
   expensesForms      ExpensesForm[]
-  ExpenseClaims      ExpenseClaims[]
 }
 
 model ExpensesForm {
-  id                  String         @id @default(auto()) @map("_id") @db.ObjectId
-  eventId             String         @db.ObjectId
-  event               Event          @relation(fields: [eventId], references: [id])
-  userId              String         @db.ObjectId
-  user                User           @relation(fields: [userId], references: [id])
+  id                  String          @id @default(auto()) @map("_id") @db.ObjectId
+  eventId             String          @db.ObjectId
+  event               Event           @relation(fields: [eventId], references: [id])
+  userId              String          @db.ObjectId
+  user                User            @relation(fields: [userId], references: [id])
   memberCategory      MemberCategory
-  costCenter          CostCenter
-  sanctionStatus      SanctionStatus @default(PENDING)
+  costCenter          CostCenter?
+  sanctionStatus      SanctionStatus  @default(PENDING)
   reasonForRejection  String?
-  actionTaken         String?
   voucherNumber       String?
   reimbursementDate   DateTime?
   bankReferenceNumber String?
   totalClaimAmount    Float
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  expensesClaims      ExpenseClaims[]
+  validatedBy         String?         @db.ObjectId
+  validator           User?           @relation(fields: [validatedBy], references: [id], name: "form_validator")
+  validatedAt         DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 }
 
 model ExpenseClaims {
   id               String           @id @default(auto()) @map("_id") @db.ObjectId
-  eventId          String           @db.ObjectId
-  event            Event            @relation(fields: [eventId], references: [id])
   userId           String           @db.ObjectId
   user             User             @relation(fields: [userId], references: [id])
+  expensesFormId   String           @db.ObjectId
+  expensesForm     ExpensesForm     @relation(fields: [expensesFormId], references: [id])
   date             DateTime
   amount           Float
   remarks          String?
@@ -125,6 +131,7 @@ enum MemberCategory {
 enum SanctionStatus {
   PENDING
   APPROVED
+  REIMBURSED
   REJECTED
 }
 

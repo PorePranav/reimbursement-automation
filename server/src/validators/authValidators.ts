@@ -1,3 +1,4 @@
+import { UserCategory } from '@prisma/client';
 import z from 'zod';
 
 export const signupSchema = z.object({
@@ -6,7 +7,7 @@ export const signupSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters long'),
   confirmPassword: z.string(),
   phone: z.string().regex(/^\d{10}$/, 'Phone number must be 10 digits long'),
-  userCategory: z.enum(['INDIVIDUAL', 'VENDOR']),
+  userCategory: z.nativeEnum(UserCategory),
 });
 
 export const loginSchema = z.object({

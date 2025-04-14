@@ -40,6 +40,12 @@ const handleJWTError = () =>
 const handleExpiredTokenError = () =>
   new AppError(`Token expired. Please log in again`, 401);
 
+const handlePrismaMalformedIdError = () =>
+  new AppError(`Malformed ID. Please check the ID format`, 400);
+
+const handlePrismaForeignKeyError = () =>
+  new AppError(`Foreign key constraint failed. Please check the ID`, 400);
+
 const errorHandler = (
   err: any,
   req: Request,
@@ -53,6 +59,8 @@ const errorHandler = (
     sendErrorDev(err, res);
   } else {
     if (err.code === 'P2002') err = handleDuplicateErrorDB(err);
+    if (err.code === 'P2003') err = handlePrismaForeignKeyError();
+    if (err.code === 'P2023') err = handlePrismaMalformedIdError();
     if (err.name === 'JsonWebTokenError') err = handleJWTError();
     if (err.name === 'TokenExpiredError') err = handleExpiredTokenError();
     sendErrorProd(err, res);
